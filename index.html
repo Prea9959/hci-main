@@ -51,6 +51,7 @@
         font-weight: bold;
         color: #1565c0;
         transition: all 0.2s;
+        cursor: pointer;
     }
     
     .lang-btn.active { background: #1565c0; color: white; transform: scale(1.05); }
@@ -173,7 +174,8 @@
               <div class="text-area">
                   <div class="card-title" data-i18n="mod1Title">1. Learn Emotions</div>
                   <div class="card-desc" data-i18n="mod1Desc">Understand what feelings are.</div>
-                  <div class="tts-icon" onclick="event.preventDefault(); speak('mod1Title')">🔊</div>
+                  
+                  <div class="tts-icon" onclick="event.preventDefault(); speak('mod1Title', 'mod1Desc')">🔊</div>
               </div>
           </a>
 
@@ -182,16 +184,18 @@
               <div class="text-area">
                   <div class="card-title" data-i18n="mod2Title">2. Express Emotions</div>
                   <div class="card-desc" data-i18n="mod2Desc">How to tell others how you feel.</div>
-                  <div class="tts-icon" onclick="event.preventDefault(); speak('mod2Title')">🔊</div>
+                  
+                  <div class="tts-icon" onclick="event.preventDefault(); speak('mod2Title', 'mod2Desc')">🔊</div>
               </div>
           </a>
 
-          <a href="https://prea9959.github.io/cope-with-strong-emotion/" class="link-card card-3">
+          <a href="coping.html" class="link-card card-3">
               <div class="icon-area">🧘</div>
               <div class="text-area">
                   <div class="card-title" data-i18n="mod3Title">3. Coping Tools</div>
                   <div class="card-desc" data-i18n="mod3Desc">Games to help you calm down.</div>
-                  <div class="tts-icon" onclick="event.preventDefault(); speak('mod3Title')">🔊</div>
+                  
+                  <div class="tts-icon" onclick="event.preventDefault(); speak('mod3Title', 'mod3Desc')">🔊</div>
               </div>
           </a>
 
@@ -249,20 +253,26 @@
         });
     }
 
-    /* === 2. GOOGLE TTS (ROBUST) === */
-    function speak(key) {
+    function speak(key1, key2 = null) {
         // Stop previous audio
         const old = document.getElementById('tts-audio');
         if(old) { old.pause(); old.remove(); }
 
-        const text = texts[currentLang][key];
+        // Fetch First Text
+        let text = texts[currentLang][key1];
+        
+        // Fetch and Combine Second Text (if provided)
+        if (key2) {
+            text += ". " + texts[currentLang][key2];
+        }
+
         if(!text) return;
 
         let langCode = 'en';
         if(currentLang === 'ms') langCode = 'ms';
         if(currentLang === 'zh') langCode = 'zh-CN';
 
-        // Google Translate API (client=tw-ob works best publicly)
+        // Google Translate API
         const audio = new Audio();
         audio.id = 'tts-audio';
         audio.src = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${langCode}&q=${encodeURIComponent(text)}`;
