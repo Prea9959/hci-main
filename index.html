@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <meta name="referrer" content="no-referrer">
+
+  <title>Calm &amp; Cope - Main Menu</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Kid-friendly Font */
+    @font-face {
+        font-family: "Comic Sans MS";
+        src: url("https://db.onlinewebfonts.com/t/7cc6719bd5f0310be3150ba33418e72e.eot");
+        src: url("https://db.onlinewebfonts.com/t/7cc6719bd5f0310be3150ba33418e72e.eot?#iefix")format("embedded-opentype"),
+        url("https://db.onlinewebfonts.com/t/7cc6719bd5f0310be3150ba33418e72e.woff2")format("woff2"),
+        url("https://db.onlinewebfonts.com/t/7cc6719bd5f0310be3150ba33418e72e.woff")format("woff"),
+        url("https://db.onlinewebfonts.com/t/7cc6719bd5f0310be3150ba33418e72e.ttf")format("truetype"),
+        url("https://db.onlinewebfonts.com/t/7cc6719bd5f0310be3150ba33418e72e.svg#Comic Sans MS")format("svg");
+    }
+
+    body {
+        font-family: 'Comic Sans MS', cursive, sans-serif;
+        background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* === HEADER === */
+    .nav-bar {
+        background: rgba(255,255,255,0.9);
+        padding: 15px 20px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        z-index: 50;
+    }
+
+    .brand { font-size: 1.5rem; color: #1565c0; font-weight: bold; }
+
+    .lang-btn {
+        background: white;
+        border: 2px solid #90caf9;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-weight: bold;
+        color: #1565c0;
+        transition: all 0.2s;
+    }
+    
+    .lang-btn.active { background: #1565c0; color: white; transform: scale(1.05); }
+
+    /* === MAIN CARDS === */
+    .main-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+    }
+
+    .welcome-title {
+        font-size: 2.5rem;
+        color: #283593;
+        text-align: center;
+        margin-bottom: 40px;
+        text-shadow: 2px 2px 0px white;
+    }
+
+    .link-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 30px;
+        width: 100%;
+        max-width: 1000px;
+    }
+
+    .link-card {
+        background: white;
+        border-radius: 20px;
+        padding: 0;
+        text-decoration: none;
+        color: inherit;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        transition: transform 0.3s, box-shadow 0.3s;
+        border: 4px solid transparent;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        height: 100%;
+    }
+
+    .link-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+    }
+
+    /* Card Colors */
+    .card-1 { border-color: #ffcc80; }
+    .card-1 .icon-area { background: #ffe0b2; color: #ef6c00; }
+    
+    .card-2 { border-color: #a5d6a7; }
+    .card-2 .icon-area { background: #c8e6c9; color: #2e7d32; }
+    
+    .card-3 { border-color: #90caf9; }
+    .card-3 .icon-area { background: #bbdefb; color: #1565c0; }
+
+    .icon-area {
+        height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3.5rem;
+    }
+
+    .text-area {
+        padding: 20px;
+        text-align: center;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .card-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 8px; color: #333; }
+    .card-desc { font-size: 1rem; color: #666; margin-bottom: 15px; }
+
+    /* TTS Button */
+    .tts-icon {
+        display: inline-block;
+        background: #eee;
+        width: 35px;
+        height: 35px;
+        line-height: 35px;
+        border-radius: 50%;
+        text-align: center;
+        cursor: pointer;
+        font-size: 1.2rem;
+        transition: background 0.2s;
+    }
+    .tts-icon:hover { background: #ddd; }
+
+  </style>
+ </head>
+ <body>
+
+  <nav class="nav-bar">
+      <div class="brand">❤️ <span data-i18n="brand">Emotion Hub</span></div>
+      <div>
+          <button class="lang-btn active" onclick="setLang('en')">English</button>
+          <button class="lang-btn" onclick="setLang('ms')">Melayu</button>
+          <button class="lang-btn" onclick="setLang('zh')">中文</button>
+      </div>
+  </nav>
+
+  <div class="main-container">
+      
+      <h1 class="welcome-title">
+          <span data-i18n="welcome">Welcome! Choose a topic:</span>
+          <div class="tts-icon" onclick="speak('welcome')">🔊</div>
+      </h1>
+
+      <div class="link-grid">
+          
+          <a href="https://hci-gamma-ashy.vercel.app/" class="link-card card-1" target="_blank">
+              <div class="icon-area">🤔</div>
+              <div class="text-area">
+                  <div class="card-title" data-i18n="mod1Title">1. Learn Emotions</div>
+                  <div class="card-desc" data-i18n="mod1Desc">Understand what feelings are.</div>
+                  <div class="tts-icon" onclick="event.preventDefault(); speak('mod1Title')">🔊</div>
+              </div>
+          </a>
+
+          <a href="INSERT_MODULE_2_LINK_HERE" class="link-card card-2" target="_blank">
+              <div class="icon-area">🗣️</div>
+              <div class="text-area">
+                  <div class="card-title" data-i18n="mod2Title">2. Express Emotions</div>
+                  <div class="card-desc" data-i18n="mod2Desc">How to tell others how you feel.</div>
+                  <div class="tts-icon" onclick="event.preventDefault(); speak('mod2Title')">🔊</div>
+              </div>
+          </a>
+
+          <a href="https://prea9959.github.io/cope-with-strong-emotion/" class="link-card card-3">
+              <div class="icon-area">🧘</div>
+              <div class="text-area">
+                  <div class="card-title" data-i18n="mod3Title">3. Coping Tools</div>
+                  <div class="card-desc" data-i18n="mod3Desc">Games to help you calm down.</div>
+                  <div class="tts-icon" onclick="event.preventDefault(); speak('mod3Title')">🔊</div>
+              </div>
+          </a>
+
+      </div>
+  </div>
+
+  <script>
+    /* === 1. TRANSLATIONS === */
+    const texts = {
+        en: {
+            brand: "Emotion Hub",
+            welcome: "Welcome! Choose a topic:",
+            mod1Title: "1. Learn Emotions",
+            mod1Desc: "Understand what feelings are.",
+            mod2Title: "2. Express Emotions",
+            mod2Desc: "How to tell others how you feel.",
+            mod3Title: "3. Coping Tools",
+            mod3Desc: "Games to help you calm down."
+        },
+        ms: {
+            brand: "Pusat Emosi",
+            welcome: "Selamat Datang! Pilih topik:",
+            mod1Title: "1. Kenali Emosi",
+            mod1Desc: "Faham apa itu perasaan.",
+            mod2Title: "2. Luahkan Emosi",
+            mod2Desc: "Cara beritahu perasaan anda.",
+            mod3Title: "3. Alat Penenang",
+            mod3Desc: "Permainan untuk bertenang."
+        },
+        zh: {
+            brand: "情绪中心",
+            welcome: "欢迎！请选择一个主题：",
+            mod1Title: "1. 学习情绪",
+            mod1Desc: "了解什么是感觉。",
+            mod2Title: "2. 表达情绪",
+            mod2Desc: "如何告诉别人你的感受。",
+            mod3Title: "3. 应对工具",
+            mod3Desc: "帮助你冷静下来的游戏。"
+        }
+    };
+
+    let currentLang = 'en';
+
+    function setLang(lang) {
+        currentLang = lang;
+        
+        // Update Buttons
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+
+        // Update Text
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if(texts[lang][key]) el.textContent = texts[lang][key];
+        });
+    }
+
+    /* === 2. GOOGLE TTS (ROBUST) === */
+    function speak(key) {
+        // Stop previous audio
+        const old = document.getElementById('tts-audio');
+        if(old) { old.pause(); old.remove(); }
+
+        const text = texts[currentLang][key];
+        if(!text) return;
+
+        let langCode = 'en';
+        if(currentLang === 'ms') langCode = 'ms';
+        if(currentLang === 'zh') langCode = 'zh-CN';
+
+        // Google Translate API (client=tw-ob works best publicly)
+        const audio = new Audio();
+        audio.id = 'tts-audio';
+        audio.src = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${langCode}&q=${encodeURIComponent(text)}`;
+        
+        audio.play().catch(e => {
+            console.error("TTS Error:", e);
+            alert("TTS Error: " + e.message);
+        });
+    }
+  </script>
+
+ </body>
+</html>
