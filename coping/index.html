@@ -848,46 +848,48 @@
 
     /* ================= UPDATED ROBUST TTS ================= */
     function speak(text) {
-        // 1. Stop any existing audio
-        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    // 1. Stop any existing audio or speech
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    
+    const oldAudio = document.getElementById('tts-audio');
+    if (oldAudio) { 
+        oldAudio.pause(); 
+        oldAudio.remove(); 
+    }
+
+    if (!text) return;
+
+    // 2. Map currentLang to full Language Codes
+    let langCode = 'en-US'; 
+    if (currentLang === 'zh') langCode = 'zh-CN';
+    if (currentLang === 'ms') langCode = 'ms-MY';
+
+    // 3. Try Native Speech (Web Speech API) first
+    const voices = window.speechSynthesis.getVoices();
+    // Check if the browser has a voice that matches our language
+    const hasNativeVoice = voices.some(v => v.lang.replace('_','-').includes(langCode.split('-')[0]));
+
+    if (hasNativeVoice) {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = langCode;
         
-        const oldAudio = document.getElementById('tts-audio');
-        if (oldAudio) { oldAudio.pause(); oldAudio.remove(); }
-
-        if (!text) return;
-
-        // 2. CHINESE (Use Youdao - Free & Reliable)
-        if (currentLang === 'zh') {
-            const audio = new Audio();
-            audio.id = 'tts-audio';
-            audio.src = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&le=zh`;
-            audio.play().catch(e => console.log("Youdao TTS Error:", e));
-            return;
-        }
-
-        // 3. ENGLISH/MALAY (Try Native -> Fallback to Google)
-        let langCode = 'en-US';
-        if (currentLang === 'ms') langCode = 'ms-MY';
-
-        const voices = window.speechSynthesis.getVoices();
-        const hasNativeVoice = voices.some(v => v.lang.replace('_','-').includes(currentLang));
-
-        if (hasNativeVoice) {
-            const u = new SpeechSynthesisUtterance(text);
-            u.lang = langCode;
-            u.onerror = () => playGoogleFallback(text, langCode); // Fail-safe
-            window.speechSynthesis.speak(u);
-        } else {
-            playGoogleFallback(text, langCode);
-        }
+        // If native speech fails mid-way, trigger Google Fallback
+        u.onerror = () => playGoogleFallback(text, langCode); 
+        
+        window.speechSynthesis.speak(u);
+    } else {
+        // 4. Fallback to Google Translate for all (including Chinese)
+        playGoogleFallback(text, langCode);
     }
+}
 
-    function playGoogleFallback(text, lang) {
-        const audio = new Audio();
-        audio.id = 'tts-audio';
-        audio.src = `https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=${lang}&q=${encodeURIComponent(text)}`;
-        audio.play().catch(e => console.log("Google TTS Error:", e));
-    }
+function playGoogleFallback(text, lang) {
+    const audio = new Audio();
+    audio.id = 'tts-audio';
+    // Ensure we use the correct lang code (Google prefers 'zh-CN' or 'zh-TW')
+    audio.src = `https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=${lang}&q=${encodeURIComponent(text)}`;
+    audio.play().catch(e => console.log("TTS Fallback Error:", e));
+}
 
     /* ================= NAVIGATION ================= */
     const startScreen = document.getElementById('startScreen');
