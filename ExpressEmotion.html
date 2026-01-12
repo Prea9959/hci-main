@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emotion Visualization</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    body { box-sizing: border-box; overflow-x: hidden; }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Noto+Sans+SC:wght@400;700&display=swap');
+    * { font-family: 'DM Sans', 'Noto Sans SC', -apple-system, sans-serif; }
+    
+    .emotion-card { transition: all 0.2s ease; cursor: pointer; }
+    .emotion-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); filter: brightness(0.95); }
+    .emotion-card:active { transform: scale(0.95); }
+    
+    /* --- QUIZ STYLES --- */
+    .quiz-option { transition: all 0.2s ease; cursor: pointer; position: relative; z-index: 10; }
+    .quiz-option:hover { transform: translateX(4px); filter: brightness(0.95); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    
+    .lang-btn { opacity: 0.6; filter: grayscale(100%); transition: all 0.2s; }
+    .lang-btn.active { opacity: 1; filter: grayscale(0%); transform: scale(1.1); font-weight: bold; border-bottom: 2px solid #333; }
+    
+    .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: scale(0.95); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .speaking-ring { 
+      background-color: #333 !important; 
+      color: white !important;
+      animation: pulse-border 1.5s infinite;
+    }
+    @keyframes pulse-border {
+      0% { box-shadow: 0 0 0 0 rgba(51, 51, 51, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(51, 51, 51, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(51, 51, 51, 0); }
+    }
+
+    /* --- FEEDBACK STYLES --- */
+    .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+    @keyframes shake {
+      10%, 90% { transform: translate3d(-1px, 0, 0); }
+      20%, 80% { transform: translate3d(2px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+      40%, 60% { transform: translate3d(4px, 0, 0); }
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0); opacity: 0; }
+      80% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .feedback-overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      border-radius: 24px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 20; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    .feedback-overlay.active { opacity: 1; pointer-events: auto; }
+
+    .correct-bg { background: rgba(76, 175, 80, 0.95); color: white; }
+    .wrong-bg { background: rgba(244, 67, 54, 0.95); color: white; }
+
+    .feedback-emoji { font-size: 100px; margin-bottom: 10px; animation: popIn 0.5s ease-out; }
+    .feedback-text { font-size: 32px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
+
+    /* Confetti */
+    .confetti {
+      position: fixed; top: 50%; width: 20px; height: 20px;
+      font-size: 24px; pointer-events: none; z-index: 9999;
+      opacity: 0;
+    }
+    @keyframes flyLeft {
+      0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+      100% { transform: translate(var(--tx), var(--ty)) rotate(720deg); opacity: 0; }
+    }
+    @keyframes flyRight {
+      0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+      100% { transform: translate(var(--tx), var(--ty)) rotate(-720deg); opacity: 0; }
+    }
+
+    /* --- BODY MAPPING & GALLERY STYLES --- */
+    .mapping-grid {
+        display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; 
+        width: 100%; margin-top: 15px;
+    }
+    @media (min-width: 768px) { .mapping-grid { grid-template-columns: repeat(3, 1fr); } }
+
+    .map-box {
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        cursor: pointer; transition: all 0.3s ease;
+        text-transform: uppercase; letter-spacing: 1.5px; color: white;
+        font-weight: 900; 
+        height: 240px; 
+        border-radius: 24px; 
+        overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+    .map-box:hover { transform: scale(1.03); filter: brightness(1.05); box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
+    
+    /* Overlay Popup Gallery */
+    .gallery-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(0, 0, 0, 0.9); z-index: 9999;
+        display: flex; flex-direction: column; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+    }
+    .gallery-overlay.active { opacity: 1; pointer-events: all; }
+    
+    /* HEADER POPUP BARU: Flex row untuk Judul+Desc dan Tombol Close */
+    .gallery-header { 
+        padding: 24px; 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        color: white; 
+        background: rgba(255,255,255,0.1);
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .gallery-content { flex: 1; padding: 20px; overflow-y: auto; }
+    .dynamic-gallery { 
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+        gap: 15px; max-width: 1000px; margin: 0 auto; 
+    }
+    .gallery-item { 
+        background: #000; border-radius: 12px; overflow: hidden; height: 250px; 
+        border: 1px solid #444; display: flex; align-items: center; justify-content: center;
+    }
+    .gallery-item img { width: 100%; height: 100%; object-fit: contain; }
+
+  </style>
+ </head>
+ <body class="h-full">
+  <a href="index.html"
+   style="
+     position: fixed;
+     top: 16px;
+     left: 16px;
+     z-index: 9999;
+     background: white;
+     color: #333;
+     padding: 10px 18px;
+     border-radius: 999px;
+     font-weight: bold;
+     text-decoration: none;
+     box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+     display: flex;
+     align-items: center;
+     gap: 8px;
+   ">
+  ⬅ Back to Main Menu
+</a>
+
+  <div id="app" class="h-full w-full overflow-auto"></div>
+
+  <div class="gallery-overlay" id="galleryOverlay">
+    <div class="gallery-header">
+        <div style="flex: 1;">
+            <h2 id="galleryTitle" style="font-size: 2rem; font-weight: 900; line-height: 1; margin-bottom: 8px;">TITLE</h2>
+            <p id="galleryDesc" style="font-size: 1.1rem; opacity: 0.9; font-weight: 500; margin: 0; color: #eee;">Description goes here...</p>
+        </div>
+        
+        <button onclick="closeGallery()" style="background:white; color:black; border:none; padding:10px 24px; border-radius:30px; font-weight:bold; cursor:pointer; margin-left: 20px; flex-shrink: 0; font-size: 1rem;">X Close</button>
+    </div>
+    <div class="gallery-content" id="galleryBody"></div>
+  </div>
+
+  <script>
+    window.dataSdk = { init: async (handler) => { return { isOk: true }; } };
+    window.elementSdk = {
+      init: (opts) => { 
+        if(opts.onConfigChange) opts.onConfigChange(opts.defaultConfig);
+        window.elementSdk.config = opts.defaultConfig;
+      },
+      setConfig: (newConfig) => { window.elementSdk.config = { ...window.elementSdk.config, ...newConfig }; }
+    };
+  </script>
+
+  <script>
+    // =================================================================
+    // 🎨 WARNA EMOSI (Pastel - untuk Visualizer)
+    // =================================================================
+    const emotionColors = {
+      'Joy': '#FFF7CD',      // Soft Yellow
+      'Sadness': '#DCF2FF',  // Soft Blue
+      'Anger': '#FFECEC',    // Soft Red
+      'Anxiety': '#F6EAFF',  // Soft Purple
+      'Shy': '#FDEFF6',      // Soft Pink
+      'Disgust': '#E7FFEB',  // Soft Green
+      'Fear': '#E0F2F1'      // Persian Green
+    };
+
+    // =================================================================
+    // 🎨 WARNA PEKAT (Vibrant - KHUSUS UNTUK QUIZ & BODY MAPPING)
+    // =================================================================
+    const vibrantColors = {
+      'Joy': '#FDD835',      // Vibrant Yellow
+      'Sadness': '#64B5F6',  // Vibrant Blue
+      'Anger': '#E57373',    // Vibrant Red
+      'Anxiety': '#BA68C8',  // Vibrant Purple
+      'Shy': '#F06292',      // Vibrant Pink
+      'Disgust': '#81C784',  // Vibrant Green
+      'Fear': '#4DB6AC'      // Vibrant Teal
+    };
+
+    // =================================================================
+    // 🎵 LIST AUDIO
+    // =================================================================
+    const customAudioLinks = {
+      joy: "https://www.myinstants.com/media/sounds/crowd-hooray.mp3", 
+      sadness: "https://www.myinstants.com/media/sounds/crying-girl.mp3", 
+      anger: "https://www.myinstants.com/media/sounds/grrrr-clash-royale.mp3", 
+      anxiety: "https://www.myinstants.com/media/sounds/heartbeat.mp3", 
+      disgust: "https://www.myinstants.com/media/sounds/yuck-yuck-eww.mp3", 
+      shy: "https://www.myinstants.com/media/sounds/awww-crowd.mp3"
+    };
+
+    // =================================================================
+    // 🖼 DATA BODY MAPPING (IMAGES)
+    // =================================================================
+    const emotionDataMapping = {
+        joy: {
+            files: [
+               "https://www.happykids-childcare.co.uk/content/themes/happykids/assets/img/kid-in-blue-circle.png",
+               "https://media.istockphoto.com/id/471723865/photo/guy-with-hearty-laugh.jpg?s=1024x1024&w=is&k=20&c=z3efwd4Hbswcnyr82ZqQL4-BsChy0W1khxCx7xhr6Ww=",
+               "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS9k0OdZGJReHT4H7srrV06Yk4khCr_AqTNqQ&s",
+               "https://images.squarespace-cdn.com/content/v1/5b6895d512b13f0ed81e48bf/1536014197495-PNQFIWQ33B5EUHIQC8T1/AdobeStock_84417253.jpeg",
+               "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExeWVvcWVkZXE0YTgyN2U0ZGZkaDJ6NXp6aXNvN2xpZHgyZGx6b3I1OCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/YnBntKOgnUSBkV7bQH/giphy.gif",
+               "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExbjJsMm04M3Y5cXlrdGFzdnppMXE1bTRtcjNuN2R0ZXFkb3RweXEydyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3s24RhPWgbRYlySJ3k/giphy.gif"
+            ]
+        },
+        sadness: {
+            files: [
+                "https://highlysensitiverefuge.com/wp-content/uploads/2020/12/do-you-cry-easily.jpg", 
+                "https://www.healthshots.com/healthshots/en/uploads/2024/11/11145621/chest-pain-770x436.jpg",
+                "https://i.postimg.cc/QdtcVr5s/Screenshot-2026-01-10-235152.png", // Link Sadness Abang
+                "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZ2szcmdtMHVyYWZncG9tdjBpbW84aW9ma3h1ZHZ2dHoyazFnbGY4MSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/d2lcHJTG5Tscg/giphy.gif",
+                "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3ZndjNm00OXc0M2lraThmNWV4Y3Z6cmE5czlxMncxMDVtOXFlYnJiNiZlcD12MV9naWZzX3JlbGF0ZWQmY3Q9Zw/zHd8x7Pik0Ftm/giphy.gif"
+            ]
+        },
+        anger: {
+            files: [
+               "https://i.postimg.cc/hP0HcV8H/Screenshot-2026-01-11-000241.png", // Link Anger Abang
+               "https://thumbs.dreamstime.com/b/clenched-fist-18239798.jpg",
+               "https://www.shutterstock.com/image-photo/side-view-angry-man-screaming-260nw-450173629.jpg",
+               "https://media.istockphoto.com/id/182153248/photo/tough-mature-man-with-arms-crossed.jpg?s=612x612&w=0&k=20&c=vvVMwp83y9M8tgqHJoCsURMZy8ae8n0v7t7a3IVj1aE=",
+               "https://media.giphy.com/media/13ATyLQB0rLVzG/giphy.gif",
+               "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExMDU1Z3NtbWMzYWh2dmplc3l6OXZ6bWxlcmRidnVldDY5bmVnbjF4bSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/psJEnGysvn7lr0rcg0/giphy.gif"
+            ]
+        },
+        anxiety: { 
+            files: [
+                "https://cdn.outsideonline.com/wp-content/uploads/migrated-images_parent/migrated-images_83/sweaty-man-suicide_fe.jpg",
+                "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExODY4NzdhaXg1bGZvMnU0c3RlZHhzMmg2NHNzNm9kb3NndGhsZnBsbyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/SJtptYpvo8PU1XQ7DX/giphy.gif",
+                "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExb3lucXhycDBtc3E3aGVmYzdyMGJ5YmpwY2dxMWFkaHk3MGRjcXVtMyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/LRVnPYqM8DLag/giphy.gif",
+                "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExZGRlanNzODN5Nmltenc3c3JnbXllZHdmcGR4YmZ4cmZ4cDVyOGVyaSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3ohhwF34cGDoFFhRfy/giphy.gif"
+            ] 
+        },
+        shy: { 
+            files: [
+                "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExc3dyeGd0Z3VkZ3g4aTkzN2Z2bmJrd2liamJmNHlvZGpwb21lbHRvbCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/Pqmm3Coyy5fTb7ouyQ/giphy.gif",
+                "https://as2.ftcdn.net/jpg/02/41/93/85/1000_F_241938594_aA27xKmExJawZxzbJs55aRtz5J8m3sxU.jpg",
+                "https://images.peopleimages.com/picture/202311/2930905-portrait-shy-and-woman-with-fist-on-face-in-studio-isolated-on-a-yellow-background.-female-person-introvert-and-covering-mouth-with-hands-peek-and-hiding-secret-and-embarrassed-with-gossip-fit_400_400.jpg",
+                "https://media.giphy.com/media/3og0INyCmHlNylks9O/giphy.gif"
+            ] 
+        },
+        disgust: { 
+            files: [
+               "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExZGh5bDA5NnZoenFwZjBjc3NmenZ0eWdhZWxnNmxnbWg4emkzNHNjeCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/QSMBLRAHZTLkQ/giphy.gif",
+               "https://smartcdn.gprod.postmedia.digital/healthing/wp-content/uploads/2021/04/smelly-farts.jpg",
+               "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3NGhoZmQyaHIzZ3FiZXF2MHZwbzMyYTBzMHlzanM0MWw0cDM5MHlrMiZlcD12MV9naWZzX3JlbGF0ZWQmY3Q9Zw/1bYaHhGtueIqQ/giphy.gif",
+               "https://www.shutterstock.com/shutterstock/photos/189295085/display_1500/stock-photo-closeup-portrait-young-unhappy-annoyed-sick-man-about-to-chuck-throw-up-retch-barf-hurl-189295085.jpg"
+            ] 
+        }
+    };
+
+    const defaultConfig = {
+      background_color: "#fef6f0",
+      surface_color: "#ffffff",
+      text_color: "#2d1b0f",
+      primary_action_color: "#e85d3d",
+      font_size: 16
+    };
+
+    let activeAudioObj = null; 
+
+    let appState = {
+      hasStarted: false, 
+      currentTab: 'mapper',
+      selectedEmotion: 'Sadness', 
+      language: 'en', 
+      isSpeaking: false,
+      quiz: { currentQuestion: 0, score: 0, answers: [], isLocked: false }
+    };
+
+    const translations = {
+      en: {
+        appTitle: "Emotion Visualization",
+        startHeader: "Enable Sound",
+        startDesc: "Tap start to enable audio effects.",
+        startBtn: "Start Engine ▶",
+        tabVisual: "See & Hear",
+        tabQuiz: "Quiz",
+        tabBody: "Body Mapping",
+        bodyHeader: "Tap a box to see physical reactions",
+        playBtn: "Play Sound",
+        pauseBtn: "Stop Sound",
+        quizComplete: "Quiz Complete! 🎉",
+        score: "Score:",
+        retake: "Retake",
+        feedbackCorrect: "CORRECT!",
+        feedbackWrong: "TRY AGAIN",
+        emotions: {
+          'Joy': { name: "Joy", desc: "High Energy! Smiling, laughing, jumping." },
+          'Sadness': { name: "Sadness", desc: "Low Energy. Crying, frowning, heavy body." },
+          'Anger': { name: "Anger", desc: "High Energy. Yelling, tense muscles." }, // FIXED
+          'Anxiety': { name: "Anxiety", desc: "Fast heartbeat. Shaking, sweating." },
+          'Shy': { name: "Shy", desc: "Blushing. Feeling shy or embarrassed." }, 
+          'Disgust': { name: "Disgust", desc: "Smells bad, cover your nose, about to throw up." } // FIXED
+        },
+        quizQuestions: [
+          { q: "Look at the huge eye roll. How is he feeling?", options: ["Anger", "Sad", "Anxiety"] },
+          { q: "His face pulls back and says 'Eww'. What is this?", options: ["Joy", "Disgust", "Sad"] },
+          { q: "Swinging arms and dancing. What is he feeling?", options: ["Anxiety", "Joy", "Anger"] },
+          { q: "Tears are flowing. he is feeling:", options: ["Happy", "Sadness", "Anger"] }
+        ]
+      },
+      ms: {
+        appTitle: "Visualisasi Emosi",
+        startHeader: "Aktifkan Bunyi",
+        startDesc: "Sila tekan mula untuk mengaktifkan kesan bunyi.",
+        startBtn: "Mula ▶",
+        tabVisual: "Lihat & Dengar",
+        tabQuiz: "Kuiz",
+        tabBody: "Peta Badan",
+        bodyHeader: "Tekan kotak untuk lihat reaksi fizikal",
+        playBtn: "Mainkan Bunyi",
+        pauseBtn: "Berhenti",
+        quizComplete: "Kuiz Selesai! 🎉",
+        score: "Markah:",
+        retake: "Ulang Semula",
+        feedbackCorrect: "BETUL!",
+        feedbackWrong: "CUBA LAGI",
+        emotions: {
+          'Joy': { name: "Kegembiraan", desc: "Tenaga Tinggi! Senyum, ketawa, melompat." },
+          'Sadness': { name: "Kesedihan", desc: "Tenaga Rendah. Menangis, mengerut dahi." },
+          'Anger': { name: "Kemarahan", desc: "Tenaga Tinggi. Menjerit, otot tegang." },
+          'Anxiety': { name: "Kebimbangan", desc: "Jantung laju. Menggeletar, berpeluh." },
+          'Shy': { name: "Malu", desc: "Muka merah. Berasa malu atau segan." },
+          'Disgust': { name: "Jijik", desc: "Jijik. Loya, mengerut hidung." }
+        },
+        quizQuestions: [
+          { q: "Lihat matanya ke atas. Apa perasaannya?", options: ["Menyampah", "Kesedihan", "Ketakutan"] },
+          { q: "Mukanya berkerut 'Eww'. Apakah ini?", options: ["Gembira", "Jijik", "Teruja"] },
+          { q: "Menari dengan gembira. Apa perasaannya?", options: ["Panik", "Gembira", "Marah"] },
+          { q: "Air mata mengalir. Dia berasa:", options: ["Gembira", "Sedih", "Bosan"] }
+        ]
+      },
+      zh: {
+        appTitle: "情绪可视化",
+        startHeader: "启用声音",
+        startDesc: "点击开始以启用声音效果。",
+        startBtn: "开始体验 ▶",
+        tabVisual: "视听体验",
+        tabQuiz: "测验",
+        tabBody: "身体映射",
+        bodyHeader: "点击方框查看身体反应",
+        playBtn: "播放声音",
+        pauseBtn: "停止播放",
+        quizComplete: "测验完成! 🎉",
+        score: "得分:",
+        retake: "重新开始",
+        feedbackCorrect: "正确!",
+        feedbackWrong: "再试一次",
+        emotions: {
+          'Joy': { name: "快乐", desc: "高能量！微笑，大笑，跳跃。" },
+          'Sadness': { name: "悲伤", desc: "低能量。哭泣，皱眉，身体沉重。" },
+          'Anger': { name: "愤怒", desc: "高能量。大喊大叫，肌肉紧张。" },
+          'Anxiety': { name: "焦虑", desc: "心跳加速。颤抖，出汗，紧张。" },
+          'Shy': { name: "羞愧", desc: "脸红。感到害羞或尴尬。" },
+          'Disgust': { name: "厌恶", desc: "反感。作呕，皱鼻子，“恶心”。" }
+        },
+        quizQuestions: [
+          { q: "看那个翻白眼。他感觉如何？", options: ["烦恼", "悲伤", "恐惧"] },
+          { q: "他的脸往后缩说'Eww'.这是什么？", options: ["快乐", "厌恶", "兴奋"] },
+          { q: "挥动手臂跳舞。他感觉如何？", options: ["恐慌", "纯粹的快乐", "愤怒"] },
+          { q: "眼泪在流。她感觉：", options: ["快乐", "悲伤", "无聊"] }
+        ]
+      }
+    };
+
+    const universalData = {
+      'Joy': { gif: "https://media.giphy.com/media/xT5LMHxhOfscxPfIfm/giphy.gif", sfx: customAudioLinks.joy },
+      'Sadness': { gif: "https://media.giphy.com/media/OPU6wzx8JrHna/giphy.gif", sfx: customAudioLinks.sadness },
+      'Anger': { gif: "https://media.giphy.com/media/11tTNkNy1SdXGg/giphy.gif", sfx: customAudioLinks.anger },
+      'Anxiety': { gif: "https://media.giphy.com/media/32mC2kXYWCsg0/giphy.gif", sfx: customAudioLinks.anxiety },
+      'Shy': { gif: "https://media.giphy.com/media/3og0INyCmHlNylks9O/giphy.gif", sfx: customAudioLinks.shy },
+      'Disgust': { gif: "https://media.giphy.com/media/R0jWWtH1CtFEk/giphy.gif", sfx: customAudioLinks.disgust }
+    };
+
+    const correctAnswers = [0, 1, 1, 1];
+    const emotionKeys = ['Joy', 'Sadness', 'Anger', 'Anxiety', 'Shy', 'Disgust'];
+
+    const dataHandler = { onDataChanged(data) { } };
+
+    (async function initializeApp() {
+      await window.dataSdk.init(dataHandler);
+      if (window.elementSdk) {
+        window.elementSdk.init({
+          defaultConfig,
+          onConfigChange: async (config) => {
+            document.documentElement.style.setProperty('--primary-color', config.primary_action_color);
+            render();
+          }
+        });
+      }
+      render();
+    })();
+
+    function render() {
+      const config = window.elementSdk?.config || defaultConfig;
+      const app = document.getElementById('app');
+      const t = translations[appState.language]; 
+
+      const langSwitcher = `
+        <div style="position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 50;">
+          <button onclick="setLang('en')" class="lang-btn ${appState.language === 'en' ? 'active' : ''}" style="background:none; border:none; cursor:pointer; font-size: 24px;" title="English">ENG</button>
+          <button onclick="setLang('ms')" class="lang-btn ${appState.language === 'ms' ? 'active' : ''}" style="background:none; border:none; cursor:pointer; font-size: 24px;" title="Bahasa Melayu">🇲🇾</button>
+          <button onclick="setLang('zh')" class="lang-btn ${appState.language === 'zh' ? 'active' : ''}" style="background:none; border:none; cursor:pointer; font-size: 24px;" title="Chinese">🇨🇳</button>
+        </div>
+      `;
+      
+      if (!appState.hasStarted) {
+        app.innerHTML = `
+          <div style="height: 100%; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: ${config.background_color}; text-align: center; padding: 20px;">
+            ${langSwitcher}
+            <div style="font-size: 60px; margin-bottom: 20px;">🔊</div>
+            <h1 style="font-size: 32px; font-weight: 700; color: ${config.text_color}; margin-bottom: 16px;">${t.startHeader}</h1>
+            <p style="color: ${config.text_color}; opacity: 0.8; margin-bottom: 32px; max-width: 400px;">
+              ${t.startDesc}
+            </p>
+            <button onclick="startApp()" style="background-color: ${config.primary_action_color}; color: white; padding: 16px 48px; border-radius: 50px; font-size: 20px; font-weight: 700; border: none; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+              ${t.startBtn}
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      // NAVIGASI UTAMA (3 TOMBOL)
+      app.innerHTML = `
+        <div style="min-height: 100%; position: relative; background-color: ${config.background_color}; color: ${config.text_color}; padding: 32px 24px;">
+          ${langSwitcher}
+          <div style="max-width: 1000px; margin: 0 auto; padding-top: 20px;">
+            <h1 style="font-size: ${config.font_size * 1.75}px; font-weight: 700; text-align: center; margin-bottom: 32px;">${t.appTitle}</h1>
+            
+            <div style="display: flex; gap: 12px; margin-bottom: 32px; justify-content: center; flex-wrap: wrap;">
+              <button onclick="switchTab('mapper')" style="padding: 12px 24px; border-radius: 12px; font-weight: 700; border: 2px solid ${appState.currentTab === 'mapper' ? config.primary_action_color : 'transparent'}; background-color: ${appState.currentTab === 'mapper' ? config.primary_action_color : config.surface_color}; color: ${appState.currentTab === 'mapper' ? '#ffffff' : config.text_color};">
+                👀 ${t.tabVisual}
+              </button>
+              <button onclick="switchTab('quiz')" style="padding: 12px 24px; border-radius: 12px; font-weight: 700; border: 2px solid ${appState.currentTab === 'quiz' ? config.primary_action_color : 'transparent'}; background-color: ${appState.currentTab === 'quiz' ? config.primary_action_color : config.surface_color}; color: ${appState.currentTab === 'quiz' ? '#ffffff' : config.text_color};">
+                🧠 ${t.tabQuiz}
+              </button>
+              <button onclick="switchTab('bodymap')" style="padding: 12px 24px; border-radius: 12px; font-weight: 700; border: 2px solid ${appState.currentTab === 'bodymap' ? config.primary_action_color : 'transparent'}; background-color: ${appState.currentTab === 'bodymap' ? config.primary_action_color : config.surface_color}; color: ${appState.currentTab === 'bodymap' ? '#ffffff' : config.text_color};">
+                🧍 ${t.tabBody}
+              </button>
+            </div>
+            
+            <div id="content-area"></div>
+          </div>
+        </div>
+      `;
+      
+      if (appState.currentTab === 'mapper') renderVisualizer(document.getElementById('content-area'), config, t);
+      else if (appState.currentTab === 'quiz') renderQuiz(document.getElementById('content-area'), config, t);
+      else if (appState.currentTab === 'bodymap') renderBodyMap(document.getElementById('content-area'), config, t);
+    }
+
+    function setLang(lang) {
+      appState.language = lang;
+      if (appState.currentTab === 'quiz') {
+         appState.quiz.currentQuestion = 0;
+         appState.quiz.score = 0;
+         appState.quiz.isLocked = false;
+      }
+      render();
+    }
+
+    function startApp() {
+      appState.hasStarted = true;
+      render();
+    }
+
+    function switchTab(tab) {
+      stopAllAudio();
+      appState.currentTab = tab;
+      appState.quiz.isLocked = false;
+      render();
+    }
+
+    /* ================= AUDIO LOGIC ================= */
+    
+    function toggleAudio() {
+      if (appState.isSpeaking) {
+        stopAllAudio();
+      } else {
+        playEmotion(appState.selectedEmotion);
+      }
+    }
+
+    function stopAllAudio() {
+      if (activeAudioObj) {
+        activeAudioObj.pause();
+        activeAudioObj.currentTime = 0;
+        activeAudioObj = null;
+      }
+      appState.isSpeaking = false;
+      updateButtonState();
+    }
+
+    function playEmotion(key) {
+      stopAllAudio(); 
+      appState.isSpeaking = true;
+      updateButtonState();
+
+      const data = universalData[key];
+      
+      if (data.sfx) {
+        activeAudioObj = new Audio(data.sfx);
+        activeAudioObj.volume = 1.0; 
+        
+        const playPromise = activeAudioObj.play();
+        
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.warn("Playback Error:", error);
+            appState.isSpeaking = false;
+            updateButtonState();
+          });
+        }
+
+        activeAudioObj.onended = () => {
+           activeAudioObj = null;
+           appState.isSpeaking = false;
+           updateButtonState();
+        };
+
+        activeAudioObj.onerror = () => { 
+          console.error("Audio Load Error for:", key);
+          activeAudioObj = null;
+          appState.isSpeaking = false;
+          updateButtonState();
+          alert("Gagal memuat file audio. Coba lagi atau periksa koneksi.");
+        };
+
+      } else {
+        appState.isSpeaking = false;
+        updateButtonState();
+      }
+    }
+
+    function updateButtonState() {
+      const btn = document.getElementById('play-btn');
+      const t = translations[appState.language];
+      if(btn) {
+        if(appState.isSpeaking) {
+           btn.classList.add('speaking-ring');
+           btn.innerHTML = `<span>⏸</span> ${t.pauseBtn}`;
+        } else {
+           btn.classList.remove('speaking-ring');
+           btn.innerHTML = `<span>▶</span> ${t.playBtn}`;
+        }
+      }
+    }
+
+    /* ================= VISUALIZER ================= */
+    function renderVisualizer(container, config, t) {
+      const key = appState.selectedEmotion;
+      const media = universalData[key];
+      const textData = t.emotions[key]; 
+      const emojis = { 'Joy':'😊', 'Sadness':'😢', 'Anger':'😠', 'Anxiety':'😰', 'Shy':'😳', 'Disgust':'🤢' };
+      
+      const currentBg = emotionColors[key] || '#ffffff';
+
+      container.innerHTML = `
+        <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 32px; align-items: start;">
+          <div style="background-color: ${config.surface_color}; padding: 24px; border-radius: 24px;">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+              ${emotionKeys.map(k => {
+                const isSelected = appState.selectedEmotion === k;
+                const cardBg = emotionColors[k]; 
+                const cardBorder = isSelected ? '4px solid #333' : '4px solid transparent';
+                const transform = isSelected ? 'scale(1.05)' : 'scale(1)';
+                const zIndex = isSelected ? '2' : '1';
+                
+                return `
+                <div class="emotion-card" onclick="selectEmotion('${k}')" 
+                  style="
+                    padding: 20px 10px; 
+                    border-radius: 16px; 
+                    border: ${cardBorder}; 
+                    background-color: ${cardBg}; 
+                    text-align: center;
+                    transform: ${transform};
+                    z-index: ${zIndex};
+                    position: relative;
+                  ">
+                  <div style="font-size: 32px; margin-bottom: 8px;">${emojis[k]}</div>
+                  <div style="font-weight: 700; color: #333; font-size: 14px;">${t.emotions[k].name}</div>
+                </div>
+              `}).join('')}
+            </div>
+          </div>
+
+          <div class="fade-in" key="${key}" style="background-color: ${currentBg}; padding: 32px; border-radius: 24px; text-align: center; display: flex; flex-direction: column; align-items: center; transition: background-color 0.3s ease;">
+              
+             <div style="width: 100%; aspect-ratio: 16/11; background-color: rgba(0,0,0,0.1); border-radius: 16px; overflow: hidden; margin-bottom: 24px; position: relative;">
+              <img src="${media.gif}" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+
+            <h2 style="font-size: 24px; font-weight: 800; color: #333; margin-bottom: 12px;">${textData.name}</h2>
+            <p style="font-size: 18px; color: #444; margin-bottom: 24px; line-height: 1.5;">${textData.desc}</p>
+
+            <button id="play-btn" onclick="toggleAudio()" style="background-color: #333; color: white; border: none; padding: 16px 40px; border-radius: 50px; font-weight: 700; font-size: 18px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; min-width: 200px; justify-content: center;">
+              <span>▶</span> ${t.playBtn}
+            </button>
+          </div>
+        </div>
+        <style>@media (max-width: 768px) { #content-area > div { grid-template-columns: 1fr !important; } }</style>
+      `;
+    }
+
+    function selectEmotion(key) {
+      stopAllAudio();
+      appState.selectedEmotion = key;
+      render(); 
+      setTimeout(() => { playEmotion(key); }, 100);
+    }
+
+    /* ================= QUIZ LOGIC ================= */
+
+    function renderQuiz(container, config, t) {
+      const questions = t.quizQuestions; 
+      const currentQIndex = appState.quiz.currentQuestion;
+
+      if (currentQIndex >= questions.length) { renderQuizResults(container, config, t); return; }
+      
+      const qGifs = [
+        "https://media.giphy.com/media/13ATyLQB0rLVzG/giphy.gif",
+        "https://media.giphy.com/media/DsdVe5jhHWNC8/giphy.gif",
+        "https://media.giphy.com/media/pa37AAGzKXoek/giphy.gif",
+        "https://media.giphy.com/media/26ufcVAp3AiJJsrIs/giphy.gif"
+      ];
+      const q = questions[currentQIndex];
+      
+      const quizColors = {
+        0: { 0: vibrantColors['Anger'], 1: vibrantColors['Sadness'], 2: vibrantColors['Fear'] }, 
+        1: { 0: vibrantColors['Joy'], 1: vibrantColors['Disgust'], 2: vibrantColors['Sadness'] }, 
+        2: { 0: vibrantColors['Fear'], 1: vibrantColors['Joy'], 2: vibrantColors['Anger'] }, 
+        3: { 0: vibrantColors['Joy'], 1: vibrantColors['Sadness'], 2: vibrantColors['Anger'] } 
+      };
+
+      const currentOptionColors = quizColors[currentQIndex];
+
+      container.innerHTML = `
+        <div id="quiz-card" style="max-width: 600px; margin: 0 auto; background-color: ${config.surface_color}; padding: 40px; border-radius: 24px; position: relative; overflow: hidden;">
+          
+          <div id="feedback-overlay" class="feedback-overlay">
+             <div id="feedback-emoji" class="feedback-emoji"></div>
+             <div id="feedback-text" class="feedback-text"></div>
+          </div>
+
+          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 24px;">${q.q}</h2>
+          <img src="${qGifs[currentQIndex]}" class="fade-in" style="width: 100%; height: 250px; object-fit: cover; border-radius: 16px; margin-bottom: 24px; background: #eee;">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            ${q.options.map((opt, idx) => {
+              const optionBg = currentOptionColors[idx];
+              return `
+                <div class="quiz-option" onclick="handleAnswer(${idx})" 
+                  style="
+                    padding: 16px; 
+                    border: 2px solid #eee; 
+                    border-radius: 12px; 
+                    font-weight: 600; 
+                    font-size: 18px; 
+                    background-color: ${optionBg};
+                    color: #2d1b0f;
+                  ">
+                  ${opt}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function handleAnswer(idx) {
+      if (appState.quiz.isLocked) return; 
+
+      const isCorrect = correctAnswers[appState.quiz.currentQuestion] === idx;
+      const t = translations[appState.language];
+      const card = document.getElementById('quiz-card');
+      const overlay = document.getElementById('feedback-overlay');
+      const fEmoji = document.getElementById('feedback-emoji');
+      const fText = document.getElementById('feedback-text');
+
+      appState.quiz.isLocked = true; 
+
+      if (isCorrect) {
+        const audio = new Audio(customAudioLinks.joy);
+        audio.volume = 1.0;
+        audio.play().catch(e => console.log("Audio play failed", e));
+
+        overlay.className = 'feedback-overlay active correct-bg';
+        fEmoji.innerText = '🥳'; 
+        fText.innerText = t.feedbackCorrect;
+
+        triggerConfetti(); 
+        
+        setTimeout(() => {
+           appState.quiz.score++;
+           appState.quiz.currentQuestion++;
+           appState.quiz.isLocked = false;
+           render();
+        }, 2000);
+
+      } else {
+        card.classList.add('shake');
+        overlay.className = 'feedback-overlay active wrong-bg';
+        fEmoji.innerText = '❌'; 
+        fText.innerText = t.feedbackWrong;
+
+        setTimeout(() => {
+          card.classList.remove('shake');
+          overlay.className = 'feedback-overlay'; 
+          appState.quiz.isLocked = false; 
+        }, 1000);
+      }
+    }
+
+    function triggerConfetti() {
+      const emojis = ['🎉', '🎊', '✨', '🤩'];
+      const container = document.body;
+      
+      for(let i=0; i<40; i++) {
+        const el = document.createElement('div');
+        el.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+        el.className = 'confetti';
+        
+        const side = Math.random() > 0.5 ? 'left' : 'right';
+        el.style.left = side === 'left' ? '-50px' : 'calc(100% + 50px)';
+        el.style.top = (Math.random() * 60 + 20) + '%';
+        el.style.animationName = side === 'left' ? 'flyLeft' : 'flyRight';
+        el.style.animationDuration = (Math.random() * 0.5 + 1) + 's';
+        
+        const tx = side === 'left' ? (Math.random() * 300 + 100) + 'px' : -(Math.random() * 300 + 100) + 'px';
+        const ty = -(Math.random() * 200 + 100) + 'px';
+        el.style.setProperty('--tx', tx);
+        el.style.setProperty('--ty', ty);
+
+        container.appendChild(el);
+        setTimeout(() => el.remove(), 1500);
+      }
+    }
+
+    function renderQuizResults(container, config, t) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 60px;">
+          <h2 style="font-size: 32px; margin-bottom: 20px;">${t.quizComplete}</h2>
+          <p style="font-size: 24px; margin-bottom: 30px;">${t.score} <strong style="color: ${config.primary_action_color}">${appState.quiz.score} / 4</strong></p>
+          <button onclick="resetQuiz()" style="background: ${config.primary_action_color}; color: white; padding: 12px 32px; border-radius: 8px; font-weight: bold;">${t.retake}</button>
+        </div>
+      `;
+    }
+
+    function resetQuiz() {
+      appState.quiz.currentQuestion = 0;
+      appState.quiz.score = 0;
+      appState.quiz.isLocked = false;
+      render();
+    }
+
+    /* ================= BODY MAPPING LOGIC ================= */
+    function renderBodyMap(container, config, t) {
+        const emojis = { 'joy':'😊', 'sadness':'😢', 'anger':'😡', 'anxiety':'😰', 'shy':'😳', 'disgust':'🤢' };
+        
+        container.innerHTML = `
+          <div class="fade-in">
+             <h3 style="text-align:center; margin-bottom:20px; color:${config.text_color}; font-size: 1.5rem; opacity:0.8; font-weight:bold;">
+                ${t.bodyHeader}
+             </h3>
+             <div class="mapping-grid">
+                ${Object.keys(emotionDataMapping).map(key => {
+                    const lookupKey = key.charAt(0).toUpperCase() + key.slice(1);
+                    const emotionName = t.emotions[lookupKey] ? t.emotions[lookupKey].name : key;
+
+                    return `
+                    <div class="map-box" onclick="openGallery('${key}')" 
+                         style="background-color: ${vibrantColors[lookupKey]};">
+                        <span style="font-size: 5rem; margin-bottom: 10px;">${emojis[key]}</span>
+                        <span style="font-size: 1.8rem;">${emotionName}</span>
+                    </div>
+                `}).join('')}
+             </div>
+          </div>
+        `;
+    }
+
+    function openGallery(key) {
+        const data = emotionDataMapping[key];
+        const t = translations[appState.language];
+        
+        // Ambil Nama & Deskripsi Emosi
+        const lookupKey = key.charAt(0).toUpperCase() + key.slice(1);
+        const emotionObj = t.emotions[lookupKey];
+        const emotionName = emotionObj ? emotionObj.name : key;
+        const emotionDesc = emotionObj ? emotionObj.desc : ""; // Mengambil deskripsi yang diminta
+
+        const overlay = document.getElementById('galleryOverlay');
+        const title = document.getElementById('galleryTitle');
+        const desc = document.getElementById('galleryDesc'); // Elemen Deskripsi Baru
+        const body = document.getElementById('galleryBody');
+
+        title.innerText = emotionName.toUpperCase();
+        desc.innerText = emotionDesc; // Set Teks Deskripsi
+        body.innerHTML = '';
+
+        const galleryDiv = document.createElement('div');
+        galleryDiv.className = 'dynamic-gallery';
+
+        data.files.forEach(url => {
+            const item = document.createElement('div');
+            item.className = 'gallery-item';
+            item.innerHTML = `<img src="${url}" alt="Body map image" />`;
+            galleryDiv.appendChild(item);
+        });
+
+        body.appendChild(galleryDiv);
+        overlay.classList.add('active');
+    }
+
+    function closeGallery() {
+        document.getElementById('galleryOverlay').classList.remove('active');
+    }
+
+  </script>
+ </body>
+
+</html>
